@@ -1,49 +1,99 @@
-# Getting Started with Create React App
+# Krypto Peněženka - Školní Projekt
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React aplikace pro správu krypto peněženky s Express backendem.
 
-## Available Scripts
+## Funkce
 
-In the project directory, you can run:
+✅ Login systém (bez hashování - školní projekt)  
+✅ **Automatické zjišťování cen kryptoměn** z CoinGecko API  
+✅ **Dropdown výběr z populárních kryptoměn** (Bitcoin, Ethereum, Dogecoin, atd.)  
+✅ **Hash/adresa pro každou kryptoměnu**  
+✅ Správa krypto měn s množstvím a real-time cenou  
+✅ Kalkulace hodnoty portfolia  
+✅ Dark/Light mode  
+✅ Protected routes  
+✅ Chybová stránka pro nevalidní URL  
+✅ Moderní design  
 
-### `npm start`
+## Instalace
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+npm install
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Spuštění
 
-### `npm test`
+### Možnost 1: Spustit frontend a backend zvlášť
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+# Terminál 1 - Backend server
+npm run server
 
-### `npm run build`
+# Terminál 2 - React frontend
+npm start
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Možnost 2: Spustit oboje najednou (potřeba nainstalovat concurrently)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm install concurrently --save-dev
+npm run dev
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Podporované kryptoměny
 
-### `npm run eject`
+- Bitcoin (BTC)
+- Ethereum (ETH)
+- Dogecoin (DOGE)
+- Ripple (XRP)
+- Cardano (ADA)
+- Solana (SOL)
+- Polkadot (DOT)
+- Litecoin (LTC)
+- Chainlink (LINK)
+- Stellar (XLM)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Ceny jsou automaticky načítány v reálném čase z **CoinGecko API**.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Přihlašovací údaje
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- **Admin**: username: `admin`, password: `123`
+- **User**: username: `user`, password: `heslo`
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Struktura projektu
 
-## Learn More
+```
+src/
+├── components/
+│   ├── Login.js         # Přihlašovací stránka
+│   ├── Dashboard.js     # Hlavní dashboard s krypto měnami
+│   ├── NotFound.js      # 404 stránka
+│   └── ProtectedRoute.js # Ochrana routes
+├── contexts/
+│   ├── AuthContext.js   # Autentizace
+│   └── ThemeContext.js  # Dark/Light mode
+└── App.js              # Hlavní komponenta s routing
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+server.js               # Express backend API
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## API Endpoints
+
+- `POST /api/login` - Přihlášení uživatele
+- `GET /api/cryptos/:userId` - Získání krypto měn uživatele
+- `POST /api/cryptos/:userId` - Přidání nové krypto měny
+- `PUT /api/cryptos/:userId/:cryptoId` - Aktualizace krypto měny
+- `DELETE /api/cryptos/:userId/:cryptoId` - Smazání krypto měny
+
+## Technologie
+
+- React 19
+- React Router v7
+- Express.js
+- Axios
+- Context API pro state management
+- CSS3 s moderním designem
+
 
 ### Code Splitting
 

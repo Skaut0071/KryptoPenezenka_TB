@@ -1,0 +1,81 @@
+.notfound-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.notfound-content {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 60px 80px;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+body.dark-theme .notfound-content {
+  background: rgba(30, 30, 50, 0.95);
+}
+
+.error-code {
+  font-size: 8rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+
+.notfound-content h2 {
+  font-size: 2rem;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+body.dark-theme .notfound-content h2 {
+  color: #f0f0f0;
+}
+
+.notfound-content p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+}
+
+body.dark-theme .notfound-content p {
+  color: #aaa;
+}
+
+.back-home-btn {
+  display: inline-block;
+  padding: 15px 35px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.back-home-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 768px) {
+  .notfound-content {
+    padding: 40px 30px;
+  }
+
+  .error-code {
+    font-size: 5rem;
+  }
+
+  .notfound-content h2 {
+    font-size: 1.5rem;
+  }
+}
