@@ -13,13 +13,13 @@ body {
 }
 
 body.light-theme {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #333;
+  background: #f5f7fa;
+  color: #2c3e50;
 }
 
 body.dark-theme {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  color: #f0f0f0;
+  background: #1a1d29;
+  color: #e4e4e7;
 }
 
 #root {
