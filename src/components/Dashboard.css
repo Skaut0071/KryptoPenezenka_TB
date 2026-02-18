@@ -781,6 +781,11 @@ body.dark-theme .detail-item.total .value {
   color: #6366f1;
 }
 
+.market-loading-progress {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 @media (max-width: 1024px) {
   .dashboard-sidebar {
     width: 240px;

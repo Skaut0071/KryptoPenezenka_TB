@@ -69,6 +69,9 @@ const formatPrice = (num) => {
   return parts.join(',');
 };
 
+// Čítač generací načítání trhu — mimo komponentu, aby ho React StrictMode nemohl resetovat
+let marketLoadGen = 0;
+
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -79,6 +82,8 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [marketData, setMarketData] = useState([]);
   const [loadingMarket, setLoadingMarket] = useState(false);
+  const [marketLoadedPages, setMarketLoadedPages] = useState(0);
+  const [marketTotalPages, setMarketTotalPages] = useState(null);
   const [marketSearch, setMarketSearch] = useState('');
   const [marketSort, setMarketSort] = useState({ key: 'market_cap_rank', dir: 'asc' });
   const [formData, setFormData] = useState({
@@ -187,17 +192,40 @@ const Dashboard = () => {
   };
 
   const loadMarketData = async () => {
+    const gen = ++marketLoadGen;
     setLoadingMarket(true);
-    try {
-      const response = await axios.get(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=czk&order=market_cap_desc&per_page=250&page=1&sparkline=false'
-      );
-      setMarketData(response.data);
-    } catch (err) {
-      console.error('Chyba při načítání market dat:', err);
-    } finally {
-      setLoadingMarket(false);
+    setMarketLoadedPages(0);
+
+    const PAGES = 5; // 5 × 250 = až 1 250 kryptoměn
+    setMarketTotalPages(PAGES);
+
+    for (let page = 1; page <= PAGES; page++) {
+      if (gen !== marketLoadGen) return;
+      try {
+        const response = await axios.get(
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=czk&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`
+        );
+        if (gen !== marketLoadGen) return;
+        if (response.data.length === 0) {
+          setMarketTotalPages(page - 1);
+          break;
+        }
+        // První stránka nahradí stará data, další appendují
+        if (page === 1) {
+          setMarketData(response.data);
+        } else {
+          setMarketData(prev => [...prev, ...response.data]);
+        }
+        setMarketLoadedPages(page);
+      } catch (err) {
+        if (gen !== marketLoadGen) return;
+        console.error(`Chyba při načítání stránky ${page}:`, err);
+        setMarketTotalPages(page - 1);
+        break;
+      }
     }
+
+    if (gen === marketLoadGen) setLoadingMarket(false);
   };
 
   useEffect(() => {
@@ -451,9 +479,16 @@ const Dashboard = () => {
           <div className="market-section">
             <div className="section-header">
               <h2>📈 Trh kryptoměn</h2>
-              <button onClick={loadMarketData} className="refresh-btn" disabled={loadingMarket}>
-                {loadingMarket ? '⏳ Načítání...' : '🔄 Obnovit'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {loadingMarket && marketData.length > 0 && (
+                  <span className="market-loading-progress">
+                    ⏳ Načítám… {marketData.length} coinů ({marketLoadedPages}/{marketTotalPages} stránek)
+                  </span>
+                )}
+                <button onClick={loadMarketData} className="refresh-btn" disabled={loadingMarket}>
+                  {loadingMarket ? '⏳ Načítání...' : '🔄 Obnovit'}
+                </button>
+              </div>
             </div>
 
             <div className="market-filters">
@@ -467,7 +502,7 @@ const Dashboard = () => {
             </div>
             
             {loadingMarket && marketData.length === 0 ? (
-              <div className="loading-state">Načítám data z trhu...</div>
+              <div className="loading-state">⏳ Načítám kryptoměny z trhu…</div>
             ) : (
               <div className="market-table">
                 <div className="market-table-header">
