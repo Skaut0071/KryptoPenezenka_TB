@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './components/Login';
+import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import NotFound from './components/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -16,6 +17,14 @@ function AppRoutes() {
       <Route 
         path="/" 
         element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+      />
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+      />
+      <Route 
+        path="/register" 
+        element={user ? <Navigate to="/dashboard" replace /> : <Register />} 
       />
       <Route 
         path="/dashboard" 

@@ -1,21 +1,43 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const PORT = 5000;
 
 app.use(cors());
 app.use(express.json());
 
-// Simulace databáze - v realném projektu by to bylo DB
-const users = [
-  { id: 1, username: 'admin', password: '123', cryptos: [] },
-  { id: 2, username: 'user', password: 'heslo', cryptos: [] }
-];
+// Cesta k databázovému souboru
+const DB_PATH = path.join(__dirname, 'database.json');
+
+// Funkce pro načtení databáze
+function loadDatabase() {
+  try {
+    const data = fs.readFileSync(DB_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Chyba při načítání databáze:', error);
+    return { users: [] };
+  }
+}
+
+// Funkce pro uložení databáze
+function saveDatabase(data) {
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.error('Chyba při ukládání databáze:', error);
+    return false;
+  }
+}
 
 // Login endpoint
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
+  const db = loadDatabase();
+  const user = db.users.find(u => u.username === username && u.password === password);
   
   if (user) {
     res.json({ 
@@ -31,9 +53,42 @@ app.post('/api/login', (req, res) => {
   }
 });
 
+// Registrace nového uživatele
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  const db = loadDatabase();
+
+  // Zkontrolovat, zda uživatel už neexistuje
+  const existingUser = db.users.find(u => u.username === username);
+  if (existingUser) {
+    return res.status(400).json({ success: false, message: 'Uživatelské jméno již existuje' });
+  }
+
+  // Vytvořit nového uživatele
+  const newUser = {
+    id: db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1,
+    username,
+    password,
+    cryptos: []
+  };
+
+  db.users.push(newUser);
+  saveDatabase(db);
+
+  res.json({ 
+    success: true, 
+    user: { 
+      id: newUser.id, 
+      username: newUser.username,
+      cryptos: newUser.cryptos
+    } 
+  });
+});
+
 // Získání krypto měn uživatele
 app.get('/api/cryptos/:userId', (req, res) => {
-  const user = users.find(u => u.id === parseInt(req.params.userId));
+  const db = loadDatabase();
+  const user = db.users.find(u => u.id === parseInt(req.params.userId));
   if (user) {
     res.json({ success: true, cryptos: user.cryptos });
   } else {
@@ -43,7 +98,8 @@ app.get('/api/cryptos/:userId', (req, res) => {
 
 // Přidání nové krypto měny
 app.post('/api/cryptos/:userId', (req, res) => {
-  const user = users.find(u => u.id === parseInt(req.params.userId));
+  const db = loadDatabase();
+  const user = db.users.find(u => u.id === parseInt(req.params.userId));
   if (user) {
     const newCrypto = {
       id: Date.now(),
@@ -55,6 +111,7 @@ app.post('/api/cryptos/:userId', (req, res) => {
       hash: req.body.hash
     };
     user.cryptos.push(newCrypto);
+    saveDatabase(db);
     res.json({ success: true, crypto: newCrypto });
   } else {
     res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
@@ -63,7 +120,8 @@ app.post('/api/cryptos/:userId', (req, res) => {
 
 // Aktualizace krypto měny
 app.put('/api/cryptos/:userId/:cryptoId', (req, res) => {
-  const user = users.find(u => u.id === parseInt(req.params.userId));
+  const db = loadDatabase();
+  const user = db.users.find(u => u.id === parseInt(req.params.userId));
   if (user) {
     const cryptoIndex = user.cryptos.findIndex(c => c.id === parseInt(req.params.cryptoId));
     if (cryptoIndex !== -1) {
@@ -72,6 +130,7 @@ app.put('/api/cryptos/:userId/:cryptoId', (req, res) => {
         ...req.body,
         id: user.cryptos[cryptoIndex].id // Zachovat původní ID
       };
+      saveDatabase(db);
       res.json({ success: true, crypto: user.cryptos[cryptoIndex] });
     } else {
       res.status(404).json({ success: false, message: 'Krypto nenalezeno' });
@@ -83,13 +142,23 @@ app.put('/api/cryptos/:userId/:cryptoId', (req, res) => {
 
 // Smazání krypto měny
 app.delete('/api/cryptos/:userId/:cryptoId', (req, res) => {
-  const user = users.find(u => u.id === parseInt(req.params.userId));
+  const db = loadDatabase();
+  const user = db.users.find(u => u.id === parseInt(req.params.userId));
   if (user) {
     user.cryptos = user.cryptos.filter(c => c.id !== parseInt(req.params.cryptoId));
+    saveDatabase(db);
     res.json({ success: true });
   } else {
     res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
   }
+});
+
+// Servírování statických souborů z buildu (produkce)
+app.use(express.static(path.join(__dirname, 'build')));
+
+// Všechny ostatní requesty přesměruj na React app (fallback pro SPA routing)
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {

@@ -120,6 +120,53 @@ body.dark-theme .input-group input:focus {
   transform: translateY(0);
 }
 
+.register-section {
+  margin-top: 25px;
+  text-align: center;
+}
+
+.register-section p {
+  margin-bottom: 10px;
+  color: #666;
+}
+
+body.dark-theme .register-section p {
+  color: #aaa;
+}
+
+.register-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #6366f1;
+  border: 2px solid #6366f1;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.register-btn:hover {
+  background: #6366f1;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.register-btn:active {
+  transform: translateY(0);
+}
+
+body.dark-theme .register-btn {
+  color: #818cf8;
+  border-color: #818cf8;
+}
+
+body.dark-theme .register-btn:hover {
+  background: #818cf8;
+  color: #1f2937;
+}
+
 .demo-info {
   margin-top: 30px;
   padding: 20px;

@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "123",
+      "cryptos": [
+        {
+          "id": 1771418680108,
+          "cryptoId": "ethereum",
+          "name": "Ethereum",
+          "symbol": "ETH",
+          "amount": 0.985458457568514,
+          "currentPrice": 40591,
+          "hash": "54156rjhf4gfdtk456)§"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "username": "user",
+      "password": "heslo",
+      "cryptos": []
+    }
+  ]
+}
