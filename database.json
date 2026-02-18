@@ -21,6 +21,12 @@
       "username": "user",
       "password": "heslo",
       "cryptos": []
+    },
+    {
+      "id": 3,
+      "username": "mati",
+      "password": "heslo",
+      "cryptos": []
     }
   ]
 }

@@ -750,6 +750,37 @@ body.dark-theme .detail-item.total .value {
   font-size: 16px;
 }
 
+.market-filters {
+  margin-bottom: 16px;
+}
+
+.market-search-input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.market-search-input:focus {
+  border-color: #6366f1;
+}
+
+.market-col-sortable {
+  cursor: pointer;
+  user-select: none;
+  gap: 4px;
+}
+
+.market-col-sortable:hover {
+  color: #6366f1;
+}
+
 @media (max-width: 1024px) {
   .dashboard-sidebar {
     width: 240px;

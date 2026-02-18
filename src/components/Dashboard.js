@@ -4,7 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import './Dashboard.css';
 
-// Seznam podporovaných kryptoměn
+// Záložní seznam kryptoměn (použit než se načtou data z API)
 const CRYPTO_OPTIONS = [
   { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', icon: '₿' },
   { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: 'Ξ' },
@@ -16,9 +16,7 @@ const CRYPTO_OPTIONS = [
   { id: 'litecoin', name: 'Litecoin', symbol: 'LTC', icon: 'Ł' },
   { id: 'chainlink', name: 'Chainlink', symbol: 'LINK', icon: '⬡' },
   { id: 'stellar', name: 'Stellar', symbol: 'XLM', icon: '*' }
-];
-
-// Pomocná funkce pro formátování čísel s oddělovačem tisíců
+];// Pomocná funkce pro formátování čísel s oddělovačem tisíců
 const formatNumber = (num, decimals = 8) => {
   if (!num && num !== 0) return '0';
   const number = parseFloat(num);
@@ -51,15 +49,38 @@ const formatCurrency = (num) => {
   return parts.join(',');
 };
 
+// Funkce pro formátování ceny kryptoměny (více desetinných míst pro malé hodnoty)
+const formatPrice = (num) => {
+  if (!num && num !== 0) return '0';
+  const number = parseFloat(num);
+  if (isNaN(number)) return '0';
+
+  let decimals;
+  if (number >= 10000)      decimals = 0;
+  else if (number >= 1000)  decimals = 1;
+  else if (number >= 100)   decimals = 2;
+  else if (number >= 1)     decimals = 3;
+  else if (number >= 0.01)  decimals = 4;
+  else if (number >= 0.0001) decimals = 6;
+  else                       decimals = 8;
+
+  const parts = number.toFixed(decimals).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return parts.join(',');
+};
+
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [cryptos, setCryptos] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingCryptos, setLoadingCryptos] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [marketData, setMarketData] = useState([]);
   const [loadingMarket, setLoadingMarket] = useState(false);
+  const [marketSearch, setMarketSearch] = useState('');
+  const [marketSort, setMarketSort] = useState({ key: 'market_cap_rank', dir: 'asc' });
   const [formData, setFormData] = useState({
     cryptoId: '',
     amount: '',
@@ -86,6 +107,7 @@ const Dashboard = () => {
   };
 
   const loadCryptos = useCallback(async () => {
+    setLoadingCryptos(true);
     try {
       const response = await axios.get(`http://localhost:5000/api/cryptos/${user.id}`);
       if (response.data.success) {
@@ -95,6 +117,8 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Chyba při načítání krypto měn:', err);
+    } finally {
+      setLoadingCryptos(false);
     }
   }, [user]);
 
@@ -109,8 +133,8 @@ const Dashboard = () => {
     setLoading(true);
     
     try {
-      // Najít vybranou kryptoměnu
-      const selectedCrypto = CRYPTO_OPTIONS.find(c => c.id === formData.cryptoId);
+      // Najít vybranou kryptoměnu (z market dat nebo záložního seznamu)
+      const selectedCrypto = (marketData.length > 0 ? marketData : CRYPTO_OPTIONS).find(c => c.id === formData.cryptoId);
       if (!selectedCrypto) return;
 
       // Získat aktuální cenu z CoinGecko API
@@ -124,7 +148,7 @@ const Dashboard = () => {
       const response = await axios.post(`http://localhost:5000/api/cryptos/${user.id}`, {
         cryptoId: formData.cryptoId,
         name: selectedCrypto.name,
-        symbol: selectedCrypto.symbol,
+        symbol: selectedCrypto.symbol.toUpperCase(),
         amount: parseFloat(formData.amount),
         currentPrice: currentPrice,
         hash: formData.hash
@@ -166,7 +190,7 @@ const Dashboard = () => {
     setLoadingMarket(true);
     try {
       const response = await axios.get(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=czk&order=market_cap_desc&per_page=50&page=1&sparkline=false'
+        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=czk&order=market_cap_desc&per_page=250&page=1&sparkline=false'
       );
       setMarketData(response.data);
     } catch (err) {
@@ -175,6 +199,10 @@ const Dashboard = () => {
       setLoadingMarket(false);
     }
   };
+
+  useEffect(() => {
+    loadMarketData();
+  }, []);
 
   const handleNavClick = (section) => {
     setActiveSection(section);
@@ -281,10 +309,12 @@ const Dashboard = () => {
                   required
                   className="crypto-select"
                 >
-                  <option value="">Vyberte kryptoměnu</option>
-                  {CRYPTO_OPTIONS.map(crypto => (
+                  <option value="">
+                    {loadingMarket ? '⏳ Načítám seznam kryptoměn...' : 'Vyberte kryptoměnu'}
+                  </option>
+                  {(marketData.length > 0 ? marketData : CRYPTO_OPTIONS).map(crypto => (
                     <option key={crypto.id} value={crypto.id}>
-                      {crypto.name} ({crypto.symbol})
+                      {crypto.name} ({(crypto.symbol || '').toUpperCase()})
                     </option>
                   ))}
                 </select>
@@ -314,15 +344,20 @@ const Dashboard = () => {
           )}
 
           <div className="crypto-list">
-            {cryptos.length === 0 ? (
+            {loadingCryptos ? (
+              <div className="loading-state">⏳ Načítám vaše kryptoměny a aktuální ceny...</div>
+            ) : cryptos.length === 0 ? (
               <div className="empty-state">
                 <p>📊 Zatím nemáte žádné krypto měny</p>
                 <p>Začněte přidáním své první krypto měny</p>
               </div>
             ) : (
               cryptos.map((crypto) => {
-                const cryptoData = CRYPTO_OPTIONS.find(c => c.id === crypto.cryptoId);
-                const icon = cryptoData?.icon || '💎';
+                const marketCoin = marketData.find(c => c.id === crypto.cryptoId);
+                const fallback = CRYPTO_OPTIONS.find(c => c.id === crypto.cryptoId);
+                const icon = marketCoin?.image
+                  ? <img src={marketCoin.image} alt={crypto.name} style={{ width: 24, height: 24 }} />
+                  : (fallback?.icon || '💎');
                 
                 return (
                 <div key={crypto.id} className="crypto-card">
@@ -373,7 +408,9 @@ const Dashboard = () => {
           <div className="portfolio-section">
             <h2>📊 Detail portfolia</h2>
             <div className="portfolio-breakdown">
-              {cryptos.length === 0 ? (
+              {loadingCryptos ? (
+                <div className="loading-state">⏳ Načítám portfolio a aktuální ceny...</div>
+              ) : cryptos.length === 0 ? (
                 <div className="empty-state">
                   <p>Zatím nemáte žádné kryptoměny v portfoliu</p>
                 </div>
@@ -418,27 +455,61 @@ const Dashboard = () => {
                 {loadingMarket ? '⏳ Načítání...' : '🔄 Obnovit'}
               </button>
             </div>
+
+            <div className="market-filters">
+              <input
+                type="text"
+                placeholder="🔍 Hledat podle názvu nebo symbolu..."
+                value={marketSearch}
+                onChange={(e) => setMarketSearch(e.target.value)}
+                className="market-search-input"
+              />
+            </div>
             
             {loadingMarket && marketData.length === 0 ? (
               <div className="loading-state">Načítám data z trhu...</div>
             ) : (
               <div className="market-table">
                 <div className="market-table-header">
-                  <div className="market-col">#</div>
-                  <div className="market-col">Kryptoměna</div>
-                  <div className="market-col">Cena</div>
-                  <div className="market-col">24h změna</div>
-                  <div className="market-col">Tržní kapitalizace</div>
+                  <div className="market-col market-col-sortable" onClick={() => setMarketSort(s => ({ key: 'market_cap_rank', dir: s.key === 'market_cap_rank' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                    # {marketSort.key === 'market_cap_rank' ? (marketSort.dir === 'asc' ? '▲' : '▼') : ''}
+                  </div>
+                  <div className="market-col market-col-sortable" onClick={() => setMarketSort(s => ({ key: 'name', dir: s.key === 'name' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                    Kryptoměna {marketSort.key === 'name' ? (marketSort.dir === 'asc' ? '▲' : '▼') : ''}
+                  </div>
+                  <div className="market-col market-col-sortable" onClick={() => setMarketSort(s => ({ key: 'current_price', dir: s.key === 'current_price' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                    Cena {marketSort.key === 'current_price' ? (marketSort.dir === 'asc' ? '▲' : '▼') : ''}
+                  </div>
+                  <div className="market-col market-col-sortable" onClick={() => setMarketSort(s => ({ key: 'price_change_percentage_24h', dir: s.key === 'price_change_percentage_24h' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                    24h změna {marketSort.key === 'price_change_percentage_24h' ? (marketSort.dir === 'asc' ? '▲' : '▼') : ''}
+                  </div>
+                  <div className="market-col market-col-sortable" onClick={() => setMarketSort(s => ({ key: 'market_cap', dir: s.key === 'market_cap' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                    Tržní kapitalizace {marketSort.key === 'market_cap' ? (marketSort.dir === 'asc' ? '▲' : '▼') : ''}
+                  </div>
                 </div>
-                {marketData.map((coin, index) => (
+                {[...marketData]
+                  .filter(coin =>
+                    coin.name.toLowerCase().includes(marketSearch.toLowerCase()) ||
+                    coin.symbol.toLowerCase().includes(marketSearch.toLowerCase())
+                  )
+                  .sort((a, b) => {
+                    const { key, dir } = marketSort;
+                    const valA = a[key] ?? 0;
+                    const valB = b[key] ?? 0;
+                    if (typeof valA === 'string') {
+                      return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    }
+                    return dir === 'asc' ? valA - valB : valB - valA;
+                  })
+                  .map((coin, index) => (
                   <div key={coin.id} className="market-table-row">
-                    <div className="market-col">{index + 1}</div>
+                    <div className="market-col">{coin.market_cap_rank}</div>
                     <div className="market-col market-coin-info">
                       <img src={coin.image} alt={coin.name} className="market-coin-icon" />
                       <span className="market-coin-name">{coin.name}</span>
                       <span className="market-coin-symbol">{coin.symbol.toUpperCase()}</span>
                     </div>
-                    <div className="market-col">{formatCurrency(coin.current_price)} Kč</div>
+                    <div className="market-col">{formatPrice(coin.current_price)} Kč</div>
                     <div className={`market-col ${coin.price_change_percentage_24h >= 0 ? 'positive' : 'negative'}`}>
                       {coin.price_change_percentage_24h >= 0 ? '↑' : '↓'} {Math.abs(coin.price_change_percentage_24h).toFixed(2)}%
                     </div>
