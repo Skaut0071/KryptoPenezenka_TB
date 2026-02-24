@@ -1,106 +1,135 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
+const { MongoClient } = require('mongodb');
+
 const app = express();
 const PORT = 5000;
 
 app.use(cors());
 app.use(express.json());
 
-// Cesta k databázovému souboru
-const DB_PATH = path.join(__dirname, 'database.json');
+// MongoDB connection
+const MONGODB_URI = 'mongodb+srv://hudecekm23_db_user:Heslo@cluster0.tanyjjb.mongodb.net/?appName=Cluster0';
+const DB_NAME = 'Users';
 
-// Funkce pro načtení databáze
-function loadDatabase() {
+let db;
+
+// Připojení k MongoDB
+async function connectToMongoDB() {
   try {
-    const data = fs.readFileSync(DB_PATH, 'utf8');
-    return JSON.parse(data);
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    db = client.db(DB_NAME);
+    console.log('Připojeno k MongoDB Atlas');
   } catch (error) {
-    console.error('Chyba při načítání databáze:', error);
-    return { users: [] };
+    console.error('Chyba při připojení k MongoDB:', error);
+    process.exit(1);
   }
 }
 
-// Funkce pro uložení databáze
-function saveDatabase(data) {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (error) {
-    console.error('Chyba při ukládání databáze:', error);
-    return false;
-  }
+// Získání kolekce uživatelů
+function getUsersCollection() {
+  return db.collection('KryptoPenezenka');
 }
 
 // Login endpoint
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  const db = loadDatabase();
-  const user = db.users.find(u => u.username === username && u.password === password);
-  
-  if (user) {
-    res.json({ 
-      success: true, 
-      user: { 
-        id: user.id, 
-        username: user.username,
-        cryptos: user.cryptos
-      } 
-    });
-  } else {
-    res.status(401).json({ success: false, message: 'Špatné přihlašovací údaje' });
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const usersCollection = getUsersCollection();
+    const doc = await usersCollection.findOne({});
+    
+    if (!doc || !doc.users) {
+      return res.status(401).json({ success: false, message: 'Špatné přihlašovací údaje' });
+    }
+    
+    const user = doc.users.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      res.json({ 
+        success: true, 
+        user: { 
+          id: user.id, 
+          username: user.username,
+          cryptos: user.cryptos || []
+        } 
+      });
+    } else {
+      res.status(401).json({ success: false, message: 'Špatné přihlašovací údaje' });
+    }
+  } catch (error) {
+    console.error('Chyba při přihlášení:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
 });
 
 // Registrace nového uživatele
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body;
-  const db = loadDatabase();
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const usersCollection = getUsersCollection();
+    const doc = await usersCollection.findOne({});
 
-  // Zkontrolovat, zda uživatel už neexistuje
-  const existingUser = db.users.find(u => u.username === username);
-  if (existingUser) {
-    return res.status(400).json({ success: false, message: 'Uživatelské jméno již existuje' });
+    if (!doc) {
+      return res.status(500).json({ success: false, message: 'Databáze není inicializována' });
+    }
+
+    // Zkontrolovat, zda uživatel už neexistuje
+    const existingUser = doc.users.find(u => u.username === username);
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Uživatelské jméno již existuje' });
+    }
+
+    // Vytvořit nového uživatele
+    const newUser = {
+      id: doc.users.length > 0 ? Math.max(...doc.users.map(u => u.id)) + 1 : 1,
+      username,
+      password,
+      cryptos: []
+    };
+
+    await usersCollection.updateOne(
+      { _id: doc._id },
+      { $push: { users: newUser } }
+    );
+
+    res.json({ 
+      success: true, 
+      user: { 
+        id: newUser.id, 
+        username: newUser.username,
+        cryptos: newUser.cryptos
+      } 
+    });
+  } catch (error) {
+    console.error('Chyba při registraci:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
-
-  // Vytvořit nového uživatele
-  const newUser = {
-    id: db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1,
-    username,
-    password,
-    cryptos: []
-  };
-
-  db.users.push(newUser);
-  saveDatabase(db);
-
-  res.json({ 
-    success: true, 
-    user: { 
-      id: newUser.id, 
-      username: newUser.username,
-      cryptos: newUser.cryptos
-    } 
-  });
 });
 
 // Získání krypto měn uživatele
-app.get('/api/cryptos/:userId', (req, res) => {
-  const db = loadDatabase();
-  const user = db.users.find(u => u.id === parseInt(req.params.userId));
-  if (user) {
-    res.json({ success: true, cryptos: user.cryptos });
-  } else {
-    res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+app.get('/api/cryptos/:userId', async (req, res) => {
+  try {
+    const usersCollection = getUsersCollection();
+    const doc = await usersCollection.findOne({});
+    const user = doc?.users?.find(u => u.id === parseInt(req.params.userId));
+    if (user) {
+      res.json({ success: true, cryptos: user.cryptos || [] });
+    } else {
+      res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+    }
+  } catch (error) {
+    console.error('Chyba při získávání krypto:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
 });
 
 // Přidání nové krypto měny
-app.post('/api/cryptos/:userId', (req, res) => {
-  const db = loadDatabase();
-  const user = db.users.find(u => u.id === parseInt(req.params.userId));
-  if (user) {
+app.post('/api/cryptos/:userId', async (req, res) => {
+  try {
+    const usersCollection = getUsersCollection();
+    const userId = parseInt(req.params.userId);
     const newCrypto = {
       id: Date.now(),
       cryptoId: req.body.cryptoId,
@@ -110,46 +139,77 @@ app.post('/api/cryptos/:userId', (req, res) => {
       currentPrice: req.body.currentPrice,
       hash: req.body.hash
     };
-    user.cryptos.push(newCrypto);
-    saveDatabase(db);
-    res.json({ success: true, crypto: newCrypto });
-  } else {
-    res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+    
+    const result = await usersCollection.updateOne(
+      { 'users.id': userId },
+      { $push: { 'users.$.cryptos': newCrypto } }
+    );
+    
+    if (result.matchedCount > 0) {
+      res.json({ success: true, crypto: newCrypto });
+    } else {
+      res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+    }
+  } catch (error) {
+    console.error('Chyba při přidávání krypto:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
 });
 
 // Aktualizace krypto měny
-app.put('/api/cryptos/:userId/:cryptoId', (req, res) => {
-  const db = loadDatabase();
-  const user = db.users.find(u => u.id === parseInt(req.params.userId));
-  if (user) {
-    const cryptoIndex = user.cryptos.findIndex(c => c.id === parseInt(req.params.cryptoId));
-    if (cryptoIndex !== -1) {
-      user.cryptos[cryptoIndex] = { 
-        ...user.cryptos[cryptoIndex], 
-        ...req.body,
-        id: user.cryptos[cryptoIndex].id // Zachovat původní ID
-      };
-      saveDatabase(db);
-      res.json({ success: true, crypto: user.cryptos[cryptoIndex] });
-    } else {
-      res.status(404).json({ success: false, message: 'Krypto nenalezeno' });
+app.put('/api/cryptos/:userId/:cryptoId', async (req, res) => {
+  try {
+    const usersCollection = getUsersCollection();
+    const userId = parseInt(req.params.userId);
+    const cryptoId = parseInt(req.params.cryptoId);
+    
+    // Nejdřív najdeme uživatele a krypto
+    const doc = await usersCollection.findOne({});
+    const user = doc?.users?.find(u => u.id === userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
     }
-  } else {
-    res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+    
+    const cryptoIndex = (user.cryptos || []).findIndex(c => c.id === cryptoId);
+    if (cryptoIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Krypto nenalezeno' });
+    }
+    
+    const updatedCrypto = { ...user.cryptos[cryptoIndex], ...req.body, id: cryptoId };
+    const userIndex = doc.users.findIndex(u => u.id === userId);
+    
+    await usersCollection.updateOne(
+      { _id: doc._id },
+      { $set: { [`users.${userIndex}.cryptos.${cryptoIndex}`]: updatedCrypto } }
+    );
+    
+    res.json({ success: true, crypto: updatedCrypto });
+  } catch (error) {
+    console.error('Chyba při aktualizaci krypto:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
 });
 
 // Smazání krypto měny
-app.delete('/api/cryptos/:userId/:cryptoId', (req, res) => {
-  const db = loadDatabase();
-  const user = db.users.find(u => u.id === parseInt(req.params.userId));
-  if (user) {
-    user.cryptos = user.cryptos.filter(c => c.id !== parseInt(req.params.cryptoId));
-    saveDatabase(db);
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+app.delete('/api/cryptos/:userId/:cryptoId', async (req, res) => {
+  try {
+    const usersCollection = getUsersCollection();
+    const userId = parseInt(req.params.userId);
+    const cryptoId = parseInt(req.params.cryptoId);
+    
+    const result = await usersCollection.updateOne(
+      { 'users.id': userId },
+      { $pull: { 'users.$.cryptos': { id: cryptoId } } }
+    );
+    
+    if (result.matchedCount > 0) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false, message: 'Uživatel nenalezen' });
+    }
+  } catch (error) {
+    console.error('Chyba při mazání krypto:', error);
+    res.status(500).json({ success: false, message: 'Chyba serveru' });
   }
 });
 
@@ -161,6 +221,9 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server běží na http://localhost:${PORT}`);
+// Spuštění serveru po připojení k MongoDB
+connectToMongoDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server běží na http://localhost:${PORT}`);
+  });
 });
