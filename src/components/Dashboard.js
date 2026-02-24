@@ -114,7 +114,7 @@ const Dashboard = () => {
   const loadCryptos = useCallback(async () => {
     setLoadingCryptos(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/cryptos/${user.id}`);
+      const response = await axios.get(`/api/cryptos/${user.id}`);
       if (response.data.success) {
         // Načíst aktuální ceny pro všechny krypto měny
         const cryptosWithPrices = await fetchCurrentPrices(response.data.cryptos);
@@ -150,7 +150,7 @@ const Dashboard = () => {
       const currentPrice = priceResponse.data[formData.cryptoId]?.czk || 0;
 
       // Uložit do backendu
-      const response = await axios.post(`http://localhost:5000/api/cryptos/${user.id}`, {
+      const response = await axios.post(`/api/cryptos/${user.id}`, {
         cryptoId: formData.cryptoId,
         name: selectedCrypto.name,
         symbol: selectedCrypto.symbol.toUpperCase(),
@@ -174,7 +174,7 @@ const Dashboard = () => {
 
   const handleDeleteCrypto = async (cryptoId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/cryptos/${user.id}/${cryptoId}`);
+      await axios.delete(`/api/cryptos/${user.id}/${cryptoId}`);
       setCryptos(cryptos.filter(c => c.id !== cryptoId));
     } catch (err) {
       console.error('Chyba při mazání krypto měny:', err);
