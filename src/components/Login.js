@@ -75,12 +75,6 @@ const Login = () => {
             Registrovat se
           </button>
         </div>
-
-        <div className="demo-info">
-          <p><strong>Demo účty:</strong></p>
-          <p>admin / 123</p>
-          <p>user / heslo</p>
-        </div>
       </div>
     </div>
   );
