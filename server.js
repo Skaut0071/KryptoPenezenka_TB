@@ -3,14 +3,17 @@ const cors = require('cors');
 const path = require('path');
 const { MongoClient } = require('mongodb');
 
+// Načtení .env souboru (pro lokální vývoj)
+require('dotenv').config();
+
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
-const MONGODB_URI = 'mongodb+srv://hudecekm23_db_user:Heslo@cluster0.tanyjjb.mongodb.net/?appName=Cluster0';
+const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = 'Users';
 
 let db;
